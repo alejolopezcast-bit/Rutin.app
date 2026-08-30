@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Rutin.app — Rutinas, tareas y pomodoros</title>
+  <meta name="description" content="Carga tu rutina y tus tareas pendientes. Marca hábitos por veces o por tiempo, con cuenta atrás y pomodoros." />
+  <meta name="theme-color" content="#0f1115" id="themeColorMeta" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="color-scheme" content="dark light" />
+
+  <!-- Pantalla completa al abrirla desde la pantalla de inicio (iOS y Android) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Rutin.app" />
+
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png" sizes="180x180" />
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Pantallas de arranque de iOS (generadas con tools/generate-assets.js) -->
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-440x956@3x.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-430x932@3x.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-402x874@3x.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-393x852@3x.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-390x844@3x.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-428x926@3x.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-414x896@2x.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-375x812@3x.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="assets/splash/splash-375x667@2x.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <!-- Barra de foco: visible solo cuando hay un temporizador activo -->
+  <div id="focusBar" class="focus-bar" hidden>
+    <div class="focus-ring">
+      <svg viewBox="0 0 36 36" aria-hidden="true">
+        <circle class="ring-bg" cx="18" cy="18" r="15.9155"></circle>
+        <circle id="focusRingArc" class="ring-arc" cx="18" cy="18" r="15.9155"></circle>
+      </svg>
+      <span id="focusEmoji" class="focus-emoji">⏳</span>
+    </div>
+    <div class="focus-info">
+      <span id="focusLabel" class="focus-label">Sesión</span>
+      <strong id="focusTime" class="focus-time">00:00</strong>
+      <span id="focusSub" class="focus-sub"></span>
+    </div>
+    <div class="focus-actions">
+      <button id="focusToggle" class="btn btn-ghost" type="button">Pausar</button>
+      <button id="focusDone" class="btn btn-primary" type="button">Terminar</button>
+      <button id="focusCancel" class="btn btn-ghost btn-icon" type="button" title="Cancelar sesión" aria-label="Cancelar sesión">✕</button>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">R</span>
+      <div>
+        <h1>Rutin.app</h1>
+        <p id="todayLabel" class="muted"></p>
+      </div>
+    </div>
+    <button id="themeToggle" class="btn btn-ghost btn-icon" type="button" title="Cambiar tema" aria-label="Cambiar tema">◐</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" role="tab" data-view="hoy">Hoy</button>
+    <button class="tab" role="tab" data-view="tareas">Tareas</button>
+    <button class="tab" role="tab" data-view="pomodoro">Pomodoro</button>
+    <button class="tab" role="tab" data-view="stats">Progreso</button>
+    <button class="tab" role="tab" data-view="ajustes">Ajustes</button>
+  </nav>
+
+  <div id="installHint" class="install-hint" hidden>
+    <span class="install-icon">📲</span>
+    <p>
+      <b>Instálala en tu iPhone:</b> toca
+      <svg class="ios-share" viewBox="0 0 24 24" role="img" aria-label="el botón Compartir">
+        <path d="M12 3v12M12 3l-3.2 3.2M12 3l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 10H5.5A1.5 1.5 0 0 0 4 11.5v8A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 10H17"
+              fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg> <b>Compartir</b> y luego
+      <b>Añadir a pantalla de inicio</b>. Se abrirá a pantalla completa, como una app.
+    </p>
+    <button id="installHintClose" class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar aviso">✕</button>
+  </div>
+
+  <main class="app-main">
+    <!-- HOY -->
+    <section id="view-hoy" class="view">
+      <div class="summary" id="daySummary"></div>
+
+      <div class="section-head">
+        <h2>Mi rutina</h2>
+        <button id="addRoutineBtn" class="btn btn-primary" type="button">+ Nueva rutina</button>
+      </div>
+      <div id="routineList" class="card-grid"></div>
+
+      <div class="section-head">
+        <h2>Tareas de hoy</h2>
+        <button class="btn btn-ghost" type="button" data-goto="tareas">Ver todas</button>
+      </div>
+      <div id="todayTasks" class="list"></div>
+    </section>
+
+    <!-- TAREAS -->
+    <section id="view-tareas" class="view" hidden>
+      <form id="taskForm" class="panel form-row">
+        <input id="taskTitle" type="text" placeholder="Nueva tarea pendiente…" autocomplete="off" required />
+        <label class="inline-field" title="Pomodoros estimados">
+          🍅
+          <input id="taskEst" type="number" min="0" max="20" step="1" value="1" />
+        </label>
+        <button class="btn btn-primary" type="submit">Añadir</button>
+      </form>
+
+      <div class="section-head">
+        <h2>Pendientes</h2>
+        <div class="chips" id="taskFilters">
+          <button class="chip is-active" data-filter="pendientes" type="button">Pendientes</button>
+          <button class="chip" data-filter="hechas" type="button">Hechas</button>
+          <button class="chip" data-filter="todas" type="button">Todas</button>
+        </div>
+      </div>
+      <div id="taskList" class="list"></div>
+    </section>
+
+    <!-- POMODORO -->
+    <section id="view-pomodoro" class="view" hidden>
+      <div class="panel pomo-panel">
+        <div class="pomo-dial">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="ring-bg" cx="18" cy="18" r="15.9155"></circle>
+            <circle id="pomoArc" class="ring-arc" cx="18" cy="18" r="15.9155"></circle>
+          </svg>
+          <div class="pomo-center">
+            <strong id="pomoTime">25:00</strong>
+            <span id="pomoPhase" class="muted">Concentración</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Tarea en la que trabajas (opcional)</span>
+          <select id="pomoTask"></select>
+        </label>
+
+        <div class="pomo-actions">
+          <button id="pomoStart" class="btn btn-primary btn-lg" type="button">Empezar pomodoro</button>
+          <button id="pomoBreak" class="btn btn-ghost" type="button">Descanso</button>
+        </div>
+        <p id="pomoMeta" class="muted center"></p>
+      </div>
+    </section>
+
+    <!-- PROGRESO -->
+    <section id="view-stats" class="view" hidden>
+      <div class="summary" id="statsSummary"></div>
+      <div class="panel">
+        <h2>Últimos 7 días</h2>
+        <div id="weekChart" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h2>Rachas por rutina</h2>
+        <div id="streakList" class="list"></div>
+      </div>
+      <div class="panel">
+        <h2>Historial reciente</h2>
+        <div id="historyList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section id="view-ajustes" class="view" hidden>
+      <div class="panel">
+        <h2>Pomodoro</h2>
+        <div class="grid-2">
+          <label class="field"><span>Concentración (min)</span><input id="setWork" type="number" min="1" max="180" /></label>
+          <label class="field"><span>Descanso corto (min)</span><input id="setShort" type="number" min="1" max="60" /></label>
+          <label class="field"><span>Descanso largo (min)</span><input id="setLong" type="number" min="1" max="90" /></label>
+          <label class="field"><span>Descanso largo cada</span><input id="setLongEvery" type="number" min="2" max="12" /></label>
+        </div>
+        <label class="switch"><input id="setAuto" type="checkbox" /><span>Encadenar automáticamente descansos y pomodoros</span></label>
+        <label class="switch"><input id="setSound" type="checkbox" /><span>Sonido al terminar</span></label>
+        <label class="switch"><input id="setNotif" type="checkbox" /><span>Notificaciones del navegador</span></label>
+      </div>
+      <div class="panel">
+        <h2>Tus datos</h2>
+        <p class="muted">Todo se guarda solo en este navegador. Exporta una copia si cambias de dispositivo.</p>
+        <div class="row-actions">
+          <button id="exportBtn" class="btn btn-ghost" type="button">Exportar copia</button>
+          <label class="btn btn-ghost file-btn">Importar copia<input id="importInput" type="file" accept="application/json" hidden /></label>
+          <button id="seedBtn" class="btn btn-ghost" type="button">Cargar rutina de ejemplo</button>
+          <button id="resetBtn" class="btn btn-danger" type="button">Borrar todo</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Editor de rutina -->
+  <dialog id="routineDialog" class="dialog">
+    <form id="routineForm" method="dialog">
+      <h2 id="routineDialogTitle">Nueva rutina</h2>
+
+      <div class="grid-2">
+        <label class="field"><span>Emoji</span><input id="rEmoji" type="text" maxlength="4" value="✅" /></label>
+        <label class="field field-wide"><span>Nombre</span><input id="rName" type="text" placeholder="Gimnasio, leer, meditar…" required /></label>
+      </div>
+
+      <fieldset class="field">
+        <span>¿Cómo quieres registrarla?</span>
+        <div class="mode-picker" id="rMode">
+          <label><input type="radio" name="rmode" value="veces" checked /><b>Por veces</b><small>Pulsas el botón y suma una sesión hecha.</small></label>
+          <label><input type="radio" name="rmode" value="tiempo" /><b>Por tiempo</b><small>Pulsas y arranca una cuenta atrás.</small></label>
+          <label><input type="radio" name="rmode" value="ambos" /><b>Las dos</b><small>Marca rápido o cronometra, tú eliges.</small></label>
+        </div>
+      </fieldset>
+
+      <div class="grid-2">
+        <label class="field" id="fieldGoalCount"><span>Veces al día</span><input id="rGoalCount" type="number" min="1" max="50" value="1" /></label>
+        <label class="field" id="fieldMinutes"><span>Minutos por sesión</span><input id="rMinutes" type="number" min="1" max="600" value="30" /></label>
+        <label class="field" id="fieldGoalMinutes"><span>Meta diaria (min)</span><input id="rGoalMinutes" type="number" min="1" max="1440" value="30" /></label>
+      </div>
+
+      <fieldset class="field">
+        <span>Días</span>
+        <div class="days" id="rDays"></div>
+      </fieldset>
+
+      <div class="dialog-actions">
+        <button id="rDelete" class="btn btn-danger" type="button" hidden>Eliminar</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="durationDialog" class="dialog sheet">
+    <form id="durationForm" method="dialog">
+      <h2 id="durationTitle">¿Cuánto tiempo?</h2>
+      <div class="chips wrap" id="durationChips"></div>
+      <label class="field">
+        <span>Otra duración (minutos)</span>
+        <input id="durationInput" type="number" inputmode="numeric" min="1" max="600" step="1" value="30" />
+      </label>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit">Empezar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="src/store.js"></script>
+  <script src="src/timer.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
