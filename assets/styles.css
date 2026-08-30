@@ -33,9 +33,25 @@
 /* Las reglas de display (grid/flex) pisarían el atributo hidden: lo forzamos. */
 [hidden] { display: none !important; }
 
+/* --- Comportamiento táctil (iOS) --- */
+html {
+  -webkit-text-size-adjust: 100%;        /* Safari no reescala el texto al girar */
+  height: -webkit-fill-available;
+}
+button, .tab, .chip, .day-btn, .item, .routine {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;            /* sin zoom por doble toque */
+}
+button, .tab, .chip, .day-btn, .brand-mark, .routine-emoji, .stat b {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+/* Safari hace zoom al enfocar un campo de menos de 16px: ver la regla de los campos. */
+
 body {
   margin: 0;
-  padding: 0 0 48px;
+  /* env(safe-area-inset-*) evita el notch, la Dynamic Island y la barra de inicio. */
+  padding: 0 env(safe-area-inset-right) calc(48px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+  overscroll-behavior-y: contain;        /* sin rebote que recargue la página */
   background: radial-gradient(1100px 520px at 80% -10%, rgba(255, 107, 82, .16), transparent 60%), var(--bg);
   color: var(--text);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
@@ -53,7 +69,8 @@ p { margin: 0; }
 /* ---------- Cabecera y navegación ---------- */
 .app-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  max-width: 940px; margin: 0 auto; padding: 20px 16px 12px;
+  max-width: 940px; margin: 0 auto;
+  padding: calc(20px + env(safe-area-inset-top)) 16px 12px;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
@@ -66,7 +83,7 @@ p { margin: 0; }
   position: sticky; top: 0; z-index: 20;
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
   max-width: 940px; margin: 0 auto; padding: 8px 16px;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(10px);
 }
 .tabs::-webkit-scrollbar { display: none; }
@@ -113,7 +130,9 @@ p { margin: 0; }
 .field-wide { grid-column: span 2; }
 fieldset.field { border: 0; padding: 0; margin: 0; }
 input[type="text"], input[type="number"], input[type="date"], select, textarea {
-  width: 100%; padding: 10px 12px; border-radius: 12px; font: inherit;
+  width: 100%; padding: 10px 12px; border-radius: 12px;
+  font: inherit;
+  font-size: 16px;   /* debe ir tras el atajo `font`: por debajo de 16px Safari hace zoom */
   background: var(--bg-soft); border: 1px solid var(--line); color: var(--text);
 }
 input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visible {
@@ -185,8 +204,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visi
 /* ---------- Barra de foco ---------- */
 /* Barra flotante inferior: se ve siempre, sin pelearse con las pestañas fijas de arriba. */
 .focus-bar {
-  position: fixed; z-index: 40; bottom: 12px; left: 50%; transform: translateX(-50%);
-  width: min(940px, calc(100vw - 24px));
+  position: fixed; z-index: 40; left: 50%; transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  width: min(940px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
   display: flex; align-items: center; gap: 14px; padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   border-radius: var(--radius); background: var(--panel);
@@ -251,14 +271,15 @@ input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visi
 
 /* ---------- Toast ---------- */
 .toast {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(22px + env(safe-area-inset-bottom));
   background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
   padding: 10px 16px; border-radius: 999px; box-shadow: var(--shadow); z-index: 60; font-size: 14px;
 }
 .toast[hidden] { display: none; }
 
-body.has-session { padding-bottom: 150px; }
-body.has-session .toast { bottom: 148px; }
+body.has-session { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+body.has-session .toast { bottom: calc(148px + env(safe-area-inset-bottom)); }
 
 @media (max-width: 640px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
@@ -268,10 +289,61 @@ body.has-session .toast { bottom: 148px; }
   .focus-bar { flex-wrap: wrap; }
   .focus-actions { width: 100%; }
   .focus-actions .btn { flex: 1; }
-  body.has-session { padding-bottom: 190px; }
-  body.has-session .toast { bottom: 188px; }
+  body.has-session { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
+  body.has-session .toast { bottom: calc(188px + env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+/* ---------- Añadidos para iOS ---------- */
+
+/* Objetivos táctiles de 44 px, el mínimo que recomienda Apple. */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; padding: 11px 16px; }
+  .btn-icon { min-width: 44px; }
+  .tab { min-height: 40px; }
+  .chip { min-height: 36px; }
+  .day-btn { min-height: 44px; width: 46px; }
+  .item input[type="checkbox"] { width: 24px; height: 24px; }
+  .routine-edit { padding: 10px; font-size: 18px; top: 4px; right: 4px; }
+}
+
+/* Aviso para añadir a la pantalla de inicio (solo Safari en iOS, y descartable). */
+.install-hint {
+  display: flex; align-items: flex-start; gap: 12px;
+  max-width: 940px; margin: 8px auto 0; padding: 12px 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.install-hint p { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.install-hint b { color: var(--text); }
+.install-icon { font-size: 20px; line-height: 1.2; }
+.ios-share {
+  width: 15px; height: 15px; vertical-align: -2px; color: var(--info);
+}
+
+/* Hojas inferiores: el patrón que espera un móvil, y diálogo centrado en pantallas grandes. */
+.sheet .chips.wrap { flex-wrap: wrap; }
+.sheet .chip { padding: 10px 14px; font-size: 15px; }
+.sheet .chip.is-active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
+
+@media (max-width: 640px) {
+  .dialog {
+    width: 100vw; max-width: 100vw; max-height: 92vh;
+    margin: auto auto 0; border-radius: 22px 22px 0 0; border-bottom: 0;
+    animation: sheet-up .22s ease-out;
+  }
+  .dialog form { padding: 18px 18px calc(24px + env(safe-area-inset-bottom)); }
+  .dialog-actions .btn { flex: 1; }
+  .install-hint { margin: 8px 16px 0; }
+}
+
+@keyframes sheet-up { from { transform: translateY(18px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+/* En modo app instalada no hay barra de Safari: el aviso sobra y el encabezado se aprieta. */
+@media (display-mode: standalone) {
+  .install-hint { display: none !important; }
+  .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
 }

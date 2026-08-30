@@ -7,7 +7,48 @@ y arranca una cuenta atrás), o las dos cosas a la vez.
 No necesita servidor ni cuenta: es HTML, CSS y JavaScript sin dependencias, y tus datos
 se guardan en el navegador (`localStorage`).
 
-## Cómo usarla
+## Instalarla en el iPhone
+
+La app está preparada para funcionar como una app de iOS instalada desde Safari:
+
+1. Abre la URL de la app **en Safari** (no vale Chrome: en iOS solo Safari puede instalar).
+2. Toca **Compartir** (el cuadrado con la flecha hacia arriba).
+3. Elige **Añadir a pantalla de inicio** → **Añadir**.
+
+Aparece con su icono junto al resto de apps y se abre a pantalla completa, sin la barra de
+Safari. Funciona sin conexión y tus datos se quedan en el móvil.
+
+Qué se cuidó para que se comporte como una app nativa:
+
+- Icono propio, pantallas de arranque para los iPhone más comunes y color de barra de
+  estado que sigue al tema claro/oscuro.
+- Respeta el notch, la Dynamic Island y la barra de inicio (`safe-area-inset`).
+- Sin zoom al tocar un campo, sin rebote de la página, sin menú de selección al mantener
+  pulsado y botones de 44 px, el mínimo táctil que recomienda Apple.
+- Para elegir una duración distinta se abre una hoja inferior con duraciones frecuentes,
+  en vez del cuadro de diálogo del navegador.
+- El sonido de aviso se desbloquea con tu primer toque (Safari lo exige).
+- La pantalla no se apaga mientras corre una cuenta atrás (Screen Wake Lock).
+
+### Límites de iOS que conviene conocer
+
+- **Con la app cerrada o el móvil bloqueado, iOS congela el JavaScript**: no sonará el
+  aviso ni llegará una notificación al terminar una cuenta atrás. La cuenta atrás **no se
+  pierde**: al volver a la app se recalcula por marca de tiempo, la sesión queda registrada
+  con sus minutos y verás el aviso «Se completó una sesión mientras no mirabas».
+- Las **notificaciones** en iOS solo funcionan con la app añadida a la pantalla de inicio
+  (iOS 16.4 o superior) y mientras la app esté abierta.
+- Si necesitas avisos con la app cerrada, hace falta una app nativa de verdad
+  (Capacitor o SwiftUI); esta versión no puede darlos.
+
+## Publicarla
+
+El repositorio incluye `.github/workflows/pages.yml`, que publica la app en **GitHub Pages**
+en cada `push` a `main`. Para activarlo: en GitHub, *Settings → Pages → Source: GitHub Actions*
+(el repositorio debe ser público, o tener un plan de pago). La URL queda en
+`https://<usuario>.github.io/Rutin.app/`.
+
+## Cómo usarla en el ordenador
 
 Abre `index.html` en el navegador. Si prefieres servirla (necesario para instalarla como
 app y para el modo sin conexión):
@@ -72,13 +113,23 @@ sin conexión.
 ## Estructura
 
 ```
-index.html         Estructura de las vistas y del diálogo de rutinas
-assets/styles.css  Estilos (tema oscuro y claro)
-assets/icon.svg    Icono de la app
-src/store.js       Estado, persistencia, progreso y rachas
-src/timer.js       Motor de cuentas atrás y pomodoros
-src/ui.js          Pintado de las vistas
-src/app.js         Arranque y eventos
-manifest.json      Manifiesto PWA
-sw.js              Service worker (uso sin conexión)
+index.html            Estructura de las vistas, hojas y diálogos
+assets/styles.css     Estilos (tema oscuro y claro, áreas seguras de iOS)
+assets/icon.svg       Icono vectorial
+assets/icons/         Iconos PNG (iOS y manifiesto)
+assets/splash/        Pantallas de arranque de iOS
+src/store.js          Estado, persistencia, progreso y rachas
+src/timer.js          Cuentas atrás y pomodoros, audio, avisos y wake lock
+src/ui.js             Pintado de las vistas
+src/app.js            Arranque y eventos
+manifest.json         Manifiesto PWA
+sw.js                 Service worker (uso sin conexión)
+tools/                Generador de iconos y splashes
+.github/workflows/    Despliegue a GitHub Pages
+```
+
+Los PNG se regeneran a partir de `assets/icon.svg` con:
+
+```bash
+NODE_PATH=$(npm root -g) node tools/generate-assets.js
 ```

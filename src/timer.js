@@ -33,11 +33,14 @@ window.Timer = (function () {
   }
 
   function ensureLoop() {
-    if (intervalId || !session || !session.running) return;
+    if (!session || !session.running) return;
+    acquireWakeLock();
+    if (intervalId) return;
     intervalId = setInterval(tick, TICK_MS);
   }
 
   function stopLoop() {
+    releaseWakeLock();
     if (!intervalId) return;
     clearInterval(intervalId);
     intervalId = null;
@@ -51,12 +54,33 @@ window.Timer = (function () {
 
   /* ---------- Avisos ---------- */
 
+  let audioCtx = null;
+
+  /* iOS sólo deja sonar el audio si el contexto se creó y arrancó desde un gesto
+     del usuario, así que lo desbloqueamos en el primer toque y lo reutilizamos. */
+  function unlockAudio() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtx) audioCtx = new Ctx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioCtx.createBuffer(1, 1, 22050); // pitido mudo que abre la salida
+      source.connect(audioCtx.destination);
+      source.start(0);
+    } catch (err) {
+      /* sin audio se sigue pudiendo usar la app */
+    }
+  }
+
   function beep() {
     if (!Store.state.settings.sound) return;
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
-      const ctx = new Ctx();
+      if (!audioCtx) audioCtx = new Ctx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const ctx = audioCtx;
       const now = ctx.currentTime;
       [0, 0.22, 0.44].forEach((offset, i) => {
         const osc = ctx.createOscillator();
@@ -70,21 +94,48 @@ window.Timer = (function () {
         osc.start(now + offset);
         osc.stop(now + offset + 0.2);
       });
-      setTimeout(() => ctx.close(), 1200);
     } catch (err) {
       /* el audio es un extra: si falla, seguimos */
     }
   }
 
-  function notify(title, body) {
+  async function notify(title, body) {
     beep();
     if (!Store.state.settings.notifications) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const options = { body, icon: 'assets/icons/icon-192.png', badge: 'assets/icons/icon-192.png', tag: 'rutin-app' };
     try {
-      new Notification(title, { body, icon: 'assets/icon.svg' });
+      // iOS no admite `new Notification()`: exige la del service worker.
+      const registration = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if (registration && registration.showNotification) {
+        await registration.showNotification(title, options);
+        return;
+      }
+      new Notification(title, options);
     } catch (err) {
-      /* algunos navegadores exigen service worker: lo ignoramos */
+      /* si el navegador no deja notificar, nos quedamos con el sonido */
     }
+  }
+
+  /* ---------- Pantalla encendida ---------- */
+
+  let wakeLock = null;
+
+  async function acquireWakeLock() {
+    if (!('wakeLock' in navigator) || wakeLock) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (err) {
+      /* el sistema puede negarlo (batería baja, pestaña oculta): no es grave */
+    }
+  }
+
+  function releaseWakeLock() {
+    if (!wakeLock) return;
+    const current = wakeLock;
+    wakeLock = null;
+    current.release().catch(() => {});
   }
 
   /* ---------- Arranque de sesiones ---------- */
@@ -246,6 +297,20 @@ window.Timer = (function () {
     else announceNext({ phase: 'work', taskId: finished.taskId, cycle });
   }
 
+  /* iOS congela el JavaScript al bloquear la pantalla o cambiar de app. Al volver
+     recalculamos desde la marca de tiempo: si la sesión ya venció, la cerramos y
+     avisamos de que se completó mientras no estabas. */
+  function catchUp() {
+    if (!session) return false;
+    if (session.running && remaining() <= 0) {
+      complete();
+      return true;
+    }
+    if (session.running) ensureLoop();
+    emit();
+    return false;
+  }
+
   /* Restaura una sesión guardada; si expiró mientras la app estaba cerrada, la cierra bien. */
   function restore() {
     try {
@@ -268,6 +333,8 @@ window.Timer = (function () {
     get session() { return session; },
     remaining,
     elapsedMinutes,
+    unlockAudio,
+    catchUp,
     startRoutine,
     startPomodoro,
     phaseMinutes,

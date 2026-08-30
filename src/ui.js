@@ -10,7 +10,8 @@ window.UI = (function () {
   let taskFilter = 'pendientes';
   let editingRoutineId = null;
   let dialogDays = [];
-  let nextPhase = null; // fase de pomodoro sugerida tras terminar una
+  let nextPhase = null;         // fase de pomodoro sugerida tras terminar una
+  let durationRoutineId = null; // rutina esperando a que elijas duración
   let toastTimer = null;
 
   /* ---------- Utilidades ---------- */
@@ -380,6 +381,56 @@ window.UI = (function () {
     $('#rName').focus();
   }
 
+  /* ---------- Hoja de duración ---------- */
+
+  const DURATION_PRESETS = [5, 10, 15, 20, 25, 30, 45, 60, 90];
+
+  function openDurationSheet(routine) {
+    durationRoutineId = routine.id;
+    $('#durationTitle').textContent = `${routine.emoji} ${routine.name}`;
+    $('#durationInput').value = routine.minutes;
+    const options = DURATION_PRESETS.includes(routine.minutes)
+      ? DURATION_PRESETS
+      : DURATION_PRESETS.concat(routine.minutes).sort((a, b) => a - b);
+    $('#durationChips').innerHTML = options.map((m) => (
+      `<button type="button" class="chip ${m === routine.minutes ? 'is-active' : ''}" data-minutes="${m}">${m} min</button>`
+    )).join('');
+    $('#durationDialog').showModal();
+  }
+
+  /* ---------- Aviso de instalación (iOS) ---------- */
+
+  const HINT_KEY = 'rutin.app.install-hint-dismissed';
+
+  function isStandalone() {
+    return window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches;
+  }
+
+  function isIOS() {
+    const ua = navigator.userAgent;
+    // iPadOS se presenta como Mac, se distingue por tener pantalla táctil.
+    return /iPad|iPhone|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function renderInstallHint() {
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(HINT_KEY) === '1'; } catch (err) { dismissed = false; }
+    $('#installHint').hidden = dismissed || isStandalone() || !isIOS();
+  }
+
+  function dismissInstallHint() {
+    try { localStorage.setItem(HINT_KEY, '1'); } catch (err) { /* modo privado */ }
+    $('#installHint').hidden = true;
+  }
+
+  /* Tiñe la barra de estado del iPhone con el color del tema activo. */
+  function syncThemeColor() {
+    const meta = $('#themeColorMeta');
+    if (meta) meta.setAttribute('content', Store.state.settings.theme === 'light' ? '#f5f6fa' : '#0f1115');
+  }
+
   /* ---------- Render general ---------- */
 
   function render() {
@@ -424,6 +475,14 @@ window.UI = (function () {
     openRoutineDialog,
     renderDayPicker,
     syncModeFields,
+    openDurationSheet,
+    renderInstallHint,
+    dismissInstallHint,
+    syncThemeColor,
+    isStandalone,
+    isIOS,
+    get durationRoutineId() { return durationRoutineId; },
+    set durationRoutineId(v) { durationRoutineId = v; },
     get currentView() { return currentView; },
     get editingRoutineId() { return editingRoutineId; },
     set editingRoutineId(v) { editingRoutineId = v; },

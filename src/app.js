@@ -6,6 +6,7 @@
 
   function applyTheme() {
     document.documentElement.dataset.theme = Store.state.settings.theme === 'light' ? 'light' : 'dark';
+    UI.syncThemeColor();
   }
 
   function renderTodayLabel() {
@@ -24,6 +25,8 @@
     Store.setSettings({ theme: Store.state.settings.theme === 'light' ? 'dark' : 'light' });
     applyTheme();
   });
+
+  $('#installHintClose').addEventListener('click', () => UI.dismissInstallHint());
 
   /* ---------- Barra de foco ---------- */
 
@@ -69,14 +72,9 @@
         startRoutineTimer(routine, routine.minutes);
         break;
 
-      case 'custom': {
-        const answer = window.prompt(`¿Cuántos minutos de ${routine.name}?`, String(routine.minutes));
-        if (answer === null) return;
-        const minutes = Math.round(Number(answer));
-        if (!minutes || minutes < 1) { toast('Pon un número de minutos válido'); return; }
-        startRoutineTimer(routine, minutes);
+      case 'custom':
+        UI.openDurationSheet(routine);
         break;
-      }
 
       case 'undo': {
         const todayLogs = Store.logsOn(Store.todayKey(), routine.id).sort((a, b) => b.ts - a.ts);
@@ -110,6 +108,29 @@
     Timer.startRoutine(routine, minutes);
     toast(`${routine.emoji} ${routine.name}: ${minutes} min en marcha`);
   }
+
+  /* ---------- Hoja de duración ---------- */
+
+  const durationDialog = $('#durationDialog');
+
+  $('#durationChips').addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-minutes]');
+    if (!chip) return;
+    $('#durationInput').value = chip.dataset.minutes;
+    $$('#durationChips .chip').forEach((c) => c.classList.toggle('is-active', c === chip));
+  });
+
+  $$('#durationDialog [data-close]').forEach((btn) => btn.addEventListener('click', () => durationDialog.close()));
+
+  $('#durationForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const routine = Store.getRoutine(UI.durationRoutineId);
+    const minutes = Math.round(Number($('#durationInput').value));
+    if (!routine || !minutes || minutes < 1) { toast('Pon un número de minutos válido'); return; }
+    durationDialog.close();
+    UI.durationRoutineId = null;
+    startRoutineTimer(routine, minutes);
+  });
 
   /* ---------- Diálogo de rutina ---------- */
 
@@ -273,6 +294,7 @@
     e.target.checked = granted;
     Store.setSettings({ notifications: granted });
     if (!granted) toast('No se concedió el permiso de notificaciones');
+    else if (UI.isIOS() && !UI.isStandalone()) toast('En iPhone hay que añadirla a la pantalla de inicio');
   });
 
   $('#exportBtn').addEventListener('click', () => {
@@ -330,14 +352,35 @@
     }
   });
 
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) UI.render();
-  });
+  /* iOS congela la pestaña al bloquear el móvil o cambiar de app: al volver hay que
+     recalcular la cuenta atrás y avisar si terminó mientras tanto. */
+  function resumeFromBackground() {
+    if (document.hidden) return;
+    const finished = Timer.catchUp();
+    UI.render();
+    if (finished) toast('Se completó una sesión mientras no mirabas ✓');
+  }
+
+  document.addEventListener('visibilitychange', resumeFromBackground);
+  window.addEventListener('pageshow', resumeFromBackground);
+  window.addEventListener('focus', resumeFromBackground);
+
+  /* El primer toque desbloquea el audio (requisito de Safari en iOS). */
+  function unlockOnce() {
+    Timer.unlockAudio();
+    window.removeEventListener('pointerdown', unlockOnce);
+    window.removeEventListener('touchstart', unlockOnce);
+    window.removeEventListener('keydown', unlockOnce);
+  }
+  window.addEventListener('pointerdown', unlockOnce);
+  window.addEventListener('touchstart', unlockOnce);
+  window.addEventListener('keydown', unlockOnce);
 
   /* ---------- Arranque ---------- */
 
   applyTheme();
   renderTodayLabel();
+  UI.renderInstallHint();
   Timer.restore();
   UI.render();
 
