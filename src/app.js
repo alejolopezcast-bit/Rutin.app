@@ -257,15 +257,236 @@
     UI.render();
   });
 
+  /* ---------- Calendario ---------- */
+
+  function moveMonth(amount) {
+    const ref = new Date(UI.calendarRef);
+    ref.setMonth(ref.getMonth() + amount, 1);
+    UI.calendarRef = ref;
+    UI.render();
+  }
+
+  $('#calPrev').addEventListener('click', () => moveMonth(-1));
+  $('#calNext').addEventListener('click', () => moveMonth(1));
+
+  $('#calToday').addEventListener('click', () => {
+    UI.calendarRef = new Date();
+    UI.calendarSelected = Store.todayKey();
+    UI.render();
+  });
+
+  $('#calGrid').addEventListener('click', (event) => {
+    const cell = event.target.closest('[data-day]');
+    if (!cell || cell.disabled) return;
+    UI.calendarSelected = cell.dataset.day;
+    UI.render();
+  });
+
+  /* ---------- Informe ---------- */
+
+  $$('#periodChips .chip').forEach((chip) => chip.addEventListener('click', () => {
+    UI.reportPeriod = chip.dataset.period;
+    UI.reportRef = new Date();
+    UI.render();
+  }));
+
+  $('#repPrev').addEventListener('click', () => { UI.shiftPeriod(-1); UI.render(); });
+  $('#repNext').addEventListener('click', () => { UI.shiftPeriod(1); UI.render(); });
+
   /* ---------- Historial (borrar registros) ---------- */
 
-  $('#historyList').addEventListener('click', (event) => {
+  $('#repHistory').addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="delete-log"]');
     const row = event.target.closest('[data-log]');
     if (!button || !row) return;
     Store.removeLog(row.dataset.log);
     toast('Registro borrado');
   });
+
+  /* ---------- Perfiles ---------- */
+
+  const profileDialog = $('#profileDialog');
+
+  $('#profileBtn').addEventListener('click', () => UI.openProfileDialog());
+  $('#manageProfilesBtn').addEventListener('click', () => UI.openProfileDialog());
+  $$('#profileDialog [data-close]').forEach((btn) => btn.addEventListener('click', () => profileDialog.close()));
+
+  $('#profileList').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action]');
+    const row = event.target.closest('[data-profile]');
+    if (!button || !row) return;
+    const id = row.dataset.profile;
+    const profile = Store.getProfile(id);
+    if (!profile) return;
+
+    if (button.dataset.action === 'use') {
+      Store.setActiveProfile(id);
+      UI.renderProfileList();
+      toast(`Ahora usas el perfil de ${profile.name}`);
+      return;
+    }
+    if (button.dataset.action === 'rename') {
+      const name = window.prompt('Nombre del perfil', profile.name);
+      if (name === null) return;
+      Store.updateProfile(id, { name });
+      UI.renderProfileList();
+      return;
+    }
+    if (button.dataset.action === 'delete') {
+      if (!window.confirm(`¿Eliminar el perfil de ${profile.name} con todas sus rutinas e historial?`)) return;
+      Store.removeProfile(id);
+      UI.renderProfileList();
+      toast('Perfil eliminado');
+    }
+  });
+
+  $('#profileForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = $('#pName').value.trim();
+    if (!name) return;
+    const profile = Store.addProfile({ name, emoji: $('#pEmoji').value.trim() || '🙂' });
+    $('#pName').value = '';
+    UI.renderProfileList();
+    toast(`Perfil de ${profile.name} creado`);
+  });
+
+  /* ---------- Compartir rutinas ---------- */
+
+  const shareDialog = $('#shareDialog');
+  const receiveDialog = $('#receiveDialog');
+
+  $('#shareRoutinesBtn').addEventListener('click', () => {
+    if (!Store.state.routines.length) { toast('Todavía no tienes rutinas que compartir'); return; }
+    UI.openShareDialog();
+  });
+
+  $('#rShare').addEventListener('click', () => {
+    const id = UI.editingRoutineId;
+    $('#routineDialog').close();
+    UI.openShareDialog(id ? [id] : []);
+  });
+
+  $$('#shareDialog [data-close], #receiveDialog [data-close]').forEach((btn) => (
+    btn.addEventListener('click', () => btn.closest('dialog').close())
+  ));
+
+  $('#shareList').addEventListener('change', (event) => {
+    const row = event.target.closest('[data-share-routine]');
+    if (!row) return;
+    UI.toggleShareRoutine(row.dataset.shareRoutine, event.target.checked);
+    UI.showShareOutput(''); // el enlace anterior ya no vale
+  });
+
+  /* El enlace lleva las rutinas dentro, en el fragmento: nunca llega a ningún servidor. */
+  function shareCode() {
+    const routines = UI.selectedRoutines();
+    if (!routines.length) { toast('Elige al menos una rutina'); return null; }
+    return Store.encodeShare(routines, Store.activeProfile().name);
+  }
+
+  function shareLink(code) {
+    return `${location.origin}${location.pathname}#compartir=${code}`;
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      return false; // Safari lo bloquea fuera de un gesto; queda el texto a la vista
+    }
+  }
+
+  $('#shareLink').addEventListener('click', async () => {
+    const code = shareCode();
+    if (!code) return;
+    const link = shareLink(code);
+    UI.showShareOutput(link);
+    toast(await copyToClipboard(link) ? 'Enlace copiado' : 'Copia el enlace de abajo');
+  });
+
+  $('#shareCode').addEventListener('click', async () => {
+    const code = shareCode();
+    if (!code) return;
+    UI.showShareOutput(code);
+    toast(await copyToClipboard(code) ? 'Código copiado' : 'Copia el código de abajo');
+  });
+
+  $('#shareNative').addEventListener('click', async () => {
+    const code = shareCode();
+    if (!code) return;
+    const count = UI.selectedRoutines().length;
+    try {
+      await navigator.share({
+        title: 'Rutinas de Rutin.app',
+        text: `Te comparto ${count} ${count === 1 ? 'rutina' : 'rutinas'} de Rutin.app`,
+        url: shareLink(code),
+      });
+    } catch (err) {
+      /* el usuario canceló el menú de compartir */
+    }
+  });
+
+  $('#shareToProfile').addEventListener('click', () => {
+    const routines = UI.selectedRoutines();
+    if (!routines.length) { toast('Elige al menos una rutina'); return; }
+    const targetId = $('#shareProfile').value;
+    const target = Store.getProfile(targetId);
+    if (!target) return;
+    const added = Store.importRoutines(routines, targetId);
+    shareDialog.close();
+    toast(added
+      ? `${added} ${added === 1 ? 'rutina enviada' : 'rutinas enviadas'} a ${target.name}`
+      : `${target.name} ya tenía esas rutinas`);
+  });
+
+  $('#receiveConfirm').addEventListener('click', () => {
+    const payload = UI.pendingShare;
+    if (!payload) return;
+    const targetId = $('#receiveProfile').value;
+    const added = Store.importRoutines(payload.routines, targetId);
+    UI.pendingShare = null;
+    receiveDialog.close();
+    if (added) {
+      if (targetId === Store.state.activeProfileId) UI.setView('hoy');
+      toast(`${added} ${added === 1 ? 'rutina añadida' : 'rutinas añadidas'}`);
+    } else {
+      toast('Ya tenías esas rutinas');
+    }
+  });
+
+  /* Acepta tanto un código suelto como el enlace completo. */
+  function readShare(text) {
+    const value = String(text || '').trim();
+    const match = value.match(/#compartir=([A-Za-z0-9_-]+)/);
+    return Store.decodeShare(match ? match[1] : value);
+  }
+
+  $('#importCodeForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = $('#importCodeInput').value;
+    if (!value.trim()) return;
+    try {
+      UI.openReceiveDialog(readShare(value));
+      $('#importCodeInput').value = '';
+    } catch (err) {
+      toast('Ese código no es válido');
+    }
+  });
+
+  /* Al abrir la app con un enlace compartido, proponemos importar. Si la app ya
+     estaba abierta, el enlace sólo cambia el hash y no recarga: de ahí el hashchange. */
+  function checkSharedLink() {
+    const match = location.hash.match(/^#compartir=([A-Za-z0-9_-]+)$/);
+    if (!match) return;
+    // Limpiamos la URL para que al recargar no vuelva a saltar el diálogo.
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      UI.openReceiveDialog(readShare(match[1]));
+    } catch (err) {
+      toast('El enlace compartido no es válido');
+    }
+  }
 
   /* ---------- Ajustes ---------- */
 
@@ -383,6 +604,8 @@
   UI.renderInstallHint();
   Timer.restore();
   UI.render();
+  checkSharedLink();
+  window.addEventListener('hashchange', checkSharedLink);
 
   // Cambio de día con la app abierta: refresca el resumen cada minuto.
   let lastDay = Store.todayKey();

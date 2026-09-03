@@ -41,6 +41,17 @@ Qué se cuidó para que se comporte como una app nativa:
 - Si necesitas avisos con la app cerrada, hace falta una app nativa de verdad
   (Capacitor o SwiftUI); esta versión no puede darlos.
 
+### Sobre el "sistema de usuarios"
+
+Los perfiles y el compartir funcionan **sin servidor ni cuentas**: todo vive en el
+dispositivo y las rutinas se pasan por enlace o código. Eso encaja con una app estática
+que se publica en GitHub Pages y se instala en el iPhone.
+
+Lo que esto **no** hace: no hay inicio de sesión, ni sincronización entre dispositivos, ni
+un muro común de rutinas. Para eso haría falta un backend (por ejemplo Supabase o Firebase)
+con autenticación y base de datos; el modelo de datos ya está separado por perfil, así que
+esa capa se podría añadir encima sin rehacer la app.
+
 ## Publicarla
 
 El repositorio incluye `.github/workflows/pages.yml`, que publica la app en **GitHub Pages**
@@ -99,10 +110,41 @@ Cuando hay una sesión en marcha aparece una barra flotante con el tiempo restan
 - Duraciones configurables (concentración, descanso corto, descanso largo y cada cuántos
   pomodoros toca el largo) y opción de encadenarlos automáticamente.
 
-### Progreso
+### Calendario
 
-Sesiones, tiempo y pomodoros de los últimos 7 días, gráfico diario, rachas por rutina e
-historial reciente (con opción de borrar registros sueltos).
+Vista mensual navegable donde cada día se tiñe según el porcentaje de rutinas que
+cumpliste de las que tocaban: de un vistazo se ve dónde flojeaste. Al tocar un día se
+abre su detalle con cada rutina, lo que hiciste y lo que quedó pendiente.
+
+### Informe
+
+El mismo informe en cuatro escalas: **día**, **mes**, **año** y **hasta ahora**, con
+flechas para moverte por periodos.
+
+- Porcentaje de cumplimiento (cumplidas / las que tocaban), sesiones, tiempo y pomodoros.
+- Gráfico que se adapta al periodo: por franjas horarias en un día, por días en un mes,
+  por meses en un año o en todo el historial.
+- Desglose rutina a rutina con su porcentaje y su detalle.
+- Historial del periodo, con opción de borrar registros sueltos.
+
+### Perfiles y rutinas compartidas
+
+Varios perfiles conviven en el mismo dispositivo, cada uno con sus rutinas, tareas e
+historial. Se cambia de perfil desde la chapa de la cabecera.
+
+Para compartir rutinas con otra persona hay tres caminos, y en los tres viaja **solo la
+definición de las rutinas**: nunca tu historial, tus tareas ni tus datos.
+
+| Cómo | Para qué |
+| --- | --- |
+| **Enlace** | Se copia (o se abre el menú de compartir de iOS) y quien lo reciba verá un diálogo para añadirlas. Las rutinas viajan dentro del propio enlace, en el fragmento `#compartir=…`, así que **no pasan por ningún servidor**. |
+| **Código** | El mismo contenido en texto, para pegar donde quieras. Se importa desde *Ajustes → Rutinas compartidas*. |
+| **Otro perfil** | Copia las rutinas a otro perfil del mismo dispositivo, sin salir de la app. |
+
+Al importar se ve primero qué llega y a qué perfil va; nada se añade sin confirmar, y las
+rutinas que ya tengas con el mismo nombre no se duplican. Como el contenido de un enlace
+viene de fuera, al entrar se valida y se acota: nombres, emojis, números y días fuera de
+rango se recortan o se descartan.
 
 ### Tus datos
 
@@ -118,15 +160,28 @@ assets/styles.css     Estilos (tema oscuro y claro, áreas seguras de iOS)
 assets/icon.svg       Icono vectorial
 assets/icons/         Iconos PNG (iOS y manifiesto)
 assets/splash/        Pantallas de arranque de iOS
-src/store.js          Estado, persistencia, progreso y rachas
+src/store.js          Estado, perfiles, informes, calendario y compartir
 src/timer.js          Cuentas atrás y pomodoros, audio, avisos y wake lock
 src/ui.js             Pintado de las vistas
 src/app.js            Arranque y eventos
 manifest.json         Manifiesto PWA
 sw.js                 Service worker (uso sin conexión)
 tools/                Generador de iconos y splashes
+tests/                Pruebas automáticas
 .github/workflows/    Despliegue a GitHub Pages
 ```
+
+## Pruebas
+
+```bash
+npm i -g playwright && playwright install chromium   # sólo la primera vez
+./tests/run.sh
+```
+
+Levanta un servidor estático y ejecuta cuatro suites: la lógica del store sin navegador
+(migración de datos, informes, calendario y validación de lo que llega por un enlace
+compartido) y tres en navegador (la app en escritorio, las funciones nuevas y el perfil de
+un iPhone). Son 152 comprobaciones.
 
 Los PNG se regeneran a partir de `assets/icon.svg` con:
 

@@ -236,15 +236,21 @@ input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visi
 .pomo-panel .field, .pomo-actions { width: min(420px, 100%); }
 .pomo-actions { display: flex; gap: 8px; justify-content: center; }
 
-/* ---------- Gráfico semanal ---------- */
-.chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; align-items: end; min-height: 150px; }
-.bar { display: grid; gap: 6px; justify-items: center; align-content: end; height: 100%; }
+/* ---------- Gráficos de barras ---------- */
+.chart-scroll { overflow-x: auto; overflow-y: hidden; margin: 0 -4px; padding: 0 4px; }
+.chart { display: flex; gap: 6px; align-items: flex-end; min-height: 160px; }
+.bar {
+  flex: 1 1 0; min-width: 18px; height: 100%;
+  display: grid; gap: 6px; justify-items: center; align-content: end;
+}
 .bar-fill {
-  width: 100%; max-width: 42px; min-height: 4px; border-radius: 8px 8px 4px 4px;
+  width: 100%; max-width: 44px; min-height: 4px; border-radius: 8px 8px 4px 4px;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
 }
 .bar-fill.dim { background: var(--panel-2); }
-.bar small { color: var(--muted); font-size: 11px; }
+.bar.is-today .bar-fill { outline: 2px solid var(--info); outline-offset: 2px; }
+.bar small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.bar small.value { color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* ---------- Diálogo ---------- */
 .dialog {
@@ -252,7 +258,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visi
   background: var(--panel); color: var(--text); padding: 0; box-shadow: var(--shadow);
 }
 .dialog::backdrop { background: rgba(4, 6, 12, .6); backdrop-filter: blur(3px); }
-.dialog form { display: grid; gap: 14px; padding: 18px; }
+.dialog form, .dialog-body { display: grid; gap: 14px; padding: 18px; }
 .dialog-actions { display: flex; gap: 8px; align-items: center; }
 .mode-picker { display: grid; gap: 8px; }
 .mode-picker label {
@@ -335,7 +341,7 @@ body.has-session .toast { bottom: calc(148px + env(safe-area-inset-bottom)); }
     margin: auto auto 0; border-radius: 22px 22px 0 0; border-bottom: 0;
     animation: sheet-up .22s ease-out;
   }
-  .dialog form { padding: 18px 18px calc(24px + env(safe-area-inset-bottom)); }
+  .dialog form, .dialog-body { padding: 18px 18px calc(24px + env(safe-area-inset-bottom)); }
   .dialog-actions .btn { flex: 1; }
   .install-hint { margin: 8px 16px 0; }
 }
@@ -347,3 +353,57 @@ body.has-session .toast { bottom: calc(148px + env(safe-area-inset-bottom)); }
   .install-hint { display: none !important; }
   .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
 }
+
+/* ---------- Perfiles ---------- */
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.profile-chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 160px;
+  padding: 7px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 600;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text);
+}
+.profile-chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-form { display: grid; grid-template-columns: 88px 1fr auto; gap: 10px; align-items: end; }
+.profile-row.is-active { border-color: var(--accent); }
+.profile-row .badge.ok { flex: 0 0 auto; }
+
+/* ---------- Calendario ---------- */
+.period-head { display: flex; align-items: center; gap: 8px; }
+.period-head h2 { flex: 0 1 auto; }
+.cal-weekdays, .cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  width: 100%; max-width: 520px; margin-inline: auto;  /* en escritorio no se estira de más */
+}
+.cal-weekdays { color: var(--muted); font-size: 12px; text-align: center; }
+.cal-day {
+  position: relative; aspect-ratio: 1; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  font: inherit; font-size: 13px; display: grid; place-content: center; gap: 2px;
+  padding: 0; overflow: hidden;
+}
+/* Mapa de calor: el día se tiñe según el porcentaje cumplido. Con celdas de 40 px
+   en el móvil una barra de progreso taparía el número; el tinte se lee siempre. */
+.cal-day::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(155deg, var(--accent), var(--accent-2));
+  opacity: calc(var(--fill, 0) * 0.92);
+}
+.cal-day > * { position: relative; }
+.cal-day.is-strong { color: #1a1206; font-weight: 700; }   /* tinte fuerte: texto oscuro */
+.cal-day.is-full { border-color: var(--accent); }
+.cal-day.out { opacity: .32; }
+.cal-day.future { opacity: .45; cursor: default; }
+.cal-day.is-today { border-color: var(--info); border-width: 2px; }
+.cal-day.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-day .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--info); }
+.cal-legend { margin-top: 2px; }
+
+/* ---------- Informe ---------- */
+.rep-row { display: flex; align-items: center; gap: 12px; }
+.rep-bar { height: 6px; border-radius: 999px; background: var(--panel-2); overflow: hidden; margin-top: 6px; }
+.rep-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.rep-pct { font-variant-numeric: tabular-nums; font-weight: 700; flex: 0 0 auto; }
+
+/* ---------- Compartir ---------- */
+.share-list { max-height: 42vh; overflow-y: auto; }
+.share-list .item { padding: 10px 12px; }
+#shareOutput { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; resize: vertical; }

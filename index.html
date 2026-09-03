@@ -63,14 +63,21 @@
         <p id="todayLabel" class="muted"></p>
       </div>
     </div>
-    <button id="themeToggle" class="btn btn-ghost btn-icon" type="button" title="Cambiar tema" aria-label="Cambiar tema">◐</button>
+    <div class="header-actions">
+      <button id="profileBtn" class="profile-chip" type="button" title="Cambiar de perfil">
+        <span id="profileEmoji">🙂</span>
+        <span id="profileName">Yo</span>
+      </button>
+      <button id="themeToggle" class="btn btn-ghost btn-icon" type="button" title="Cambiar tema" aria-label="Cambiar tema">◐</button>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist">
     <button class="tab is-active" role="tab" data-view="hoy">Hoy</button>
+    <button class="tab" role="tab" data-view="calendario">Calendario</button>
     <button class="tab" role="tab" data-view="tareas">Tareas</button>
     <button class="tab" role="tab" data-view="pomodoro">Pomodoro</button>
-    <button class="tab" role="tab" data-view="stats">Progreso</button>
+    <button class="tab" role="tab" data-view="informe">Informe</button>
     <button class="tab" role="tab" data-view="ajustes">Ajustes</button>
   </nav>
 
@@ -96,7 +103,10 @@
 
       <div class="section-head">
         <h2>Mi rutina</h2>
-        <button id="addRoutineBtn" class="btn btn-primary" type="button">+ Nueva rutina</button>
+        <div class="row-actions">
+          <button id="shareRoutinesBtn" class="btn btn-ghost" type="button">Compartir</button>
+          <button id="addRoutineBtn" class="btn btn-primary" type="button">+ Nueva rutina</button>
+        </div>
       </div>
       <div id="routineList" class="card-grid"></div>
 
@@ -105,6 +115,25 @@
         <button class="btn btn-ghost" type="button" data-goto="tareas">Ver todas</button>
       </div>
       <div id="todayTasks" class="list"></div>
+    </section>
+
+    <!-- CALENDARIO -->
+    <section id="view-calendario" class="view" hidden>
+      <div class="panel">
+        <div class="period-head">
+          <button id="calPrev" class="btn btn-ghost btn-icon" type="button" aria-label="Mes anterior">‹</button>
+          <h2 id="calLabel">Mes</h2>
+          <button id="calNext" class="btn btn-ghost btn-icon" type="button" aria-label="Mes siguiente">›</button>
+          <span class="spacer"></span>
+          <button id="calToday" class="btn btn-ghost" type="button">Hoy</button>
+        </div>
+        <div class="cal-weekdays" id="calWeekdays" aria-hidden="true"></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <p class="muted cal-legend">
+          El relleno de cada día indica cuántas rutinas cumpliste de las que tocaban. Toca un día para ver el detalle.
+        </p>
+      </div>
+      <div class="panel" id="calDetail"></div>
     </section>
 
     <!-- TAREAS -->
@@ -156,20 +185,37 @@
       </div>
     </section>
 
-    <!-- PROGRESO -->
-    <section id="view-stats" class="view" hidden>
-      <div class="summary" id="statsSummary"></div>
+    <!-- INFORME -->
+    <section id="view-informe" class="view" hidden>
       <div class="panel">
-        <h2>Últimos 7 días</h2>
-        <div id="weekChart" class="chart"></div>
+        <div class="chips wrap" id="periodChips">
+          <button class="chip" data-period="dia" type="button">Día</button>
+          <button class="chip is-active" data-period="mes" type="button">Mes</button>
+          <button class="chip" data-period="anio" type="button">Año</button>
+          <button class="chip" data-period="todo" type="button">Hasta ahora</button>
+        </div>
+        <div class="period-head">
+          <button id="repPrev" class="btn btn-ghost btn-icon" type="button" aria-label="Periodo anterior">‹</button>
+          <h2 id="repLabel">Periodo</h2>
+          <button id="repNext" class="btn btn-ghost btn-icon" type="button" aria-label="Periodo siguiente">›</button>
+        </div>
       </div>
+
+      <div class="summary" id="repSummary"></div>
+
       <div class="panel">
-        <h2>Rachas por rutina</h2>
-        <div id="streakList" class="list"></div>
+        <h2 id="repChartTitle">Actividad</h2>
+        <div class="chart-scroll"><div id="repChart" class="chart"></div></div>
       </div>
+
       <div class="panel">
-        <h2>Historial reciente</h2>
-        <div id="historyList" class="list"></div>
+        <h2>Rutina a rutina</h2>
+        <div id="repRoutines" class="list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Historial del periodo</h2>
+        <div id="repHistory" class="list"></div>
       </div>
     </section>
 
@@ -187,6 +233,23 @@
         <label class="switch"><input id="setSound" type="checkbox" /><span>Sonido al terminar</span></label>
         <label class="switch"><input id="setNotif" type="checkbox" /><span>Notificaciones del navegador</span></label>
       </div>
+      <div class="panel">
+        <h2>Perfiles</h2>
+        <p class="muted">Cada perfil guarda sus propias rutinas, tareas e historial en este dispositivo.</p>
+        <div class="row-actions">
+          <button id="manageProfilesBtn" class="btn btn-ghost" type="button">Gestionar perfiles</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Rutinas compartidas</h2>
+        <p class="muted">Pega aquí el código que te haya pasado otra persona para añadir sus rutinas.</p>
+        <form id="importCodeForm" class="form-row">
+          <input id="importCodeInput" type="text" placeholder="Pega el código o el enlace…" autocomplete="off" />
+          <button class="btn btn-primary" type="submit">Añadir</button>
+        </form>
+      </div>
+
       <div class="panel">
         <h2>Tus datos</h2>
         <p class="muted">Todo se guarda solo en este navegador. Exporta una copia si cambias de dispositivo.</p>
@@ -232,6 +295,7 @@
 
       <div class="dialog-actions">
         <button id="rDelete" class="btn btn-danger" type="button" hidden>Eliminar</button>
+        <button id="rShare" class="btn btn-ghost" type="button" hidden>Compartir</button>
         <span class="spacer"></span>
         <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
         <button class="btn btn-primary" type="submit">Guardar</button>
@@ -252,6 +316,77 @@
         <button class="btn btn-primary" type="submit">Empezar</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Perfiles -->
+  <dialog id="profileDialog" class="dialog">
+    <div class="dialog-body">
+      <h2>Perfiles</h2>
+      <div id="profileList" class="list"></div>
+
+      <form id="profileForm" class="profile-form">
+        <label class="field"><span>Emoji</span><input id="pEmoji" type="text" maxlength="4" value="🙂" /></label>
+        <label class="field field-wide"><span>Nombre del nuevo perfil</span><input id="pName" type="text" placeholder="Ana, Familia, Trabajo…" required /></label>
+        <button class="btn btn-primary" type="submit">Crear</button>
+      </form>
+
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Compartir rutinas -->
+  <dialog id="shareDialog" class="dialog">
+    <div class="dialog-body">
+      <h2>Compartir rutinas</h2>
+      <p class="muted">Se comparte solo la definición de las rutinas: ni tu historial, ni tus tareas, ni tus datos.</p>
+
+      <div id="shareList" class="list share-list"></div>
+
+      <div class="row-actions">
+        <button id="shareNative" class="btn btn-primary" type="button" hidden>Compartir…</button>
+        <button id="shareLink" class="btn btn-ghost" type="button">Copiar enlace</button>
+        <button id="shareCode" class="btn btn-ghost" type="button">Copiar código</button>
+      </div>
+
+      <label class="field" id="shareProfileField">
+        <span>O envíalas a otro perfil de este dispositivo</span>
+        <div class="form-row">
+          <select id="shareProfile"></select>
+          <button id="shareToProfile" class="btn btn-ghost" type="button">Enviar</button>
+        </div>
+      </label>
+
+      <label class="field" id="shareOutputField" hidden>
+        <span>Cópialo y pásaselo a quien quieras</span>
+        <textarea id="shareOutput" rows="3" readonly></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Rutinas recibidas -->
+  <dialog id="receiveDialog" class="dialog">
+    <div class="dialog-body">
+      <h2>Rutinas compartidas contigo</h2>
+      <p id="receiveFrom" class="muted"></p>
+      <div id="receiveList" class="list"></div>
+      <label class="field">
+        <span>Añadirlas al perfil</span>
+        <select id="receiveProfile"></select>
+      </label>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Ahora no</button>
+        <button id="receiveConfirm" class="btn btn-primary" type="button">Añadir a mis rutinas</button>
+      </div>
+    </div>
   </dialog>
 
   <div id="toast" class="toast" hidden></div>

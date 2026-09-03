@@ -13,6 +13,12 @@ window.UI = (function () {
   let nextPhase = null;         // fase de pomodoro sugerida tras terminar una
   let durationRoutineId = null; // rutina esperando a que elijas duración
   let toastTimer = null;
+  let calendarRef = new Date();     // mes que muestra el calendario
+  let calendarSelected = null;      // día seleccionado en el calendario
+  let reportPeriod = 'mes';         // dia | mes | anio | todo
+  let reportRef = new Date();       // periodo que muestra el informe
+  let shareSelection = new Set();   // rutinas marcadas para compartir
+  let pendingShare = null;          // rutinas recibidas pendientes de aceptar
 
   /* ---------- Utilidades ---------- */
 
@@ -29,6 +35,13 @@ window.UI = (function () {
     const s = total % 60;
     const pad = (n) => String(n).padStart(2, '0');
     return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+
+  /* Mayúscula sólo en la primera letra: "septiembre de 2026" -> "Septiembre de 2026".
+     (text-transform: capitalize pondría también "De".) */
+  function capitalize(text) {
+    const value = String(text || '');
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   function fmtMinutes(mins) {
@@ -258,67 +271,147 @@ window.UI = (function () {
     $('#pomoBreak').hidden = !!active;
   }
 
-  /* ---------- Vista Progreso ---------- */
+  /* ---------- Vista Calendario ---------- */
 
-  function renderStats() {
+  const CAL_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+  function renderCalendario() {
+    const grid = Store.monthGrid(calendarRef.getFullYear(), calendarRef.getMonth());
+    $('#calLabel').textContent = capitalize(grid.label);
+    $('#calWeekdays').innerHTML = CAL_LETTERS.map((d) => `<span>${d}</span>`).join('');
+
     const today = Store.todayKey();
-    const days = [];
-    for (let i = 6; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = Store.dayKey(d);
-      const logs = Store.logsOn(key);
-      days.push({
-        key,
-        label: DAY_NAMES[d.getDay()],
-        minutes: logs.reduce((acc, l) => acc + (l.minutes || 0), 0),
-        sessions: logs.reduce((acc, l) => acc + (l.count || 0), 0),
-        pomodoros: Store.pomodorosOn(key).length,
-        isToday: key === today,
-      });
-    }
+    $('#calGrid').innerHTML = grid.cells.map((cell) => {
+      const classes = ['cal-day'];
+      if (!cell.inMonth) classes.push('out');
+      if (cell.isFuture) classes.push('future');
+      if (cell.isToday) classes.push('is-today');
+      if (cell.ratio >= 0.55) classes.push('is-strong'); // el tinte ya pide texto oscuro
+      if (cell.ratio >= 1) classes.push('is-full');
+      if (cell.key === (calendarSelected || today)) classes.push('is-selected');
+      // El punto sólo marca los días con actividad que no llegó a completar nada:
+      // el resto ya se ve en el relleno.
+      const activityOnly = cell.sessions > 0 && cell.ratio === 0;
+      const title = `${cell.day}: ${cell.done} de ${cell.scheduled || 0} rutinas`;
+      return `<button type="button" class="${classes.join(' ')}" data-day="${cell.key}"
+        style="--fill:${cell.isFuture ? 0 : cell.ratio}" title="${escapeHtml(title)}"
+        ${cell.isFuture ? 'disabled' : ''}>
+        <span>${cell.day}</span>
+        ${activityOnly ? '<span class="dot"></span>' : ''}
+      </button>`;
+    }).join('');
 
-    const weekSessions = days.reduce((acc, d) => acc + d.sessions, 0);
-    const weekMinutes = days.reduce((acc, d) => acc + d.minutes, 0);
-    const weekPomos = days.reduce((acc, d) => acc + d.pomodoros, 0);
-    const bestStreak = Store.state.routines.reduce((max, r) => Math.max(max, Store.streak(r)), 0);
+    renderDayDetail();
+  }
 
-    $('#statsSummary').innerHTML = [
-      { value: weekSessions, label: 'Sesiones (7 días)' },
-      { value: fmtMinutes(weekMinutes), label: 'Tiempo (7 días)' },
-      { value: weekPomos, label: 'Pomodoros (7 días)' },
-      { value: `🔥 ${bestStreak}`, label: 'Mejor racha' },
-    ].map((s) => `<div class="stat"><b>${escapeHtml(s.value)}</b><span>${s.label}</span></div>`).join('');
+  function renderDayDetail() {
+    const key = calendarSelected || Store.todayKey();
+    const detail = Store.dayDetail(key);
+    const hechas = detail.routines.filter((r) => r.done).length;
+    const tocaban = detail.routines.filter((r) => r.scheduled).length;
+    const minutos = detail.routines.reduce((acc, r) => acc + r.minutes, 0);
 
-    const max = Math.max(1, ...days.map((d) => d.minutes || d.sessions * 10));
-    $('#weekChart').innerHTML = days.map((d) => {
-      const value = d.minutes || d.sessions * 10;
-      const height = Math.round((value / max) * 110) + 4;
-      return `<div class="bar" title="${d.sessions} sesiones · ${fmtMinutes(d.minutes)}">
+    const rows = detail.routines
+      .slice()
+      .sort((a, b) => (b.done - a.done) || (b.scheduled - a.scheduled))
+      .map((row) => {
+        const estado = row.done
+          ? '<span class="badge ok">Hecho ✓</span>'
+          : row.scheduled
+            ? '<span class="badge">Pendiente</span>'
+            : '<span class="badge">No tocaba</span>';
+        const detalleTexto = row.byTime
+          ? `${fmtMinutes(row.minutes)} de ${fmtMinutes(row.target)}`
+          : `${row.count} de ${row.target}${row.minutes ? ` · ${fmtMinutes(row.minutes)}` : ''}`;
+        return `<div class="item">
+          <span class="routine-emoji">${escapeHtml(row.routine.emoji)}</span>
+          <div class="item-main">
+            <span class="item-title">${escapeHtml(row.routine.name)}</span>
+            <span class="muted">${escapeHtml(detalleTexto)}</span>
+          </div>
+          ${estado}
+        </div>`;
+      }).join('');
+
+    $('#calDetail').innerHTML = `
+      <h2>${escapeHtml(capitalize(detail.label))}</h2>
+      <p class="muted">${hechas} de ${tocaban} rutinas que tocaban · ${fmtMinutes(minutos)} · ${detail.pomodoros} pomodoros</p>
+      ${rows || '<div class="empty">Sin rutinas todavía.</div>'}`;
+  }
+
+  /* ---------- Vista Informe ---------- */
+
+  const PERIOD_TITLES = { dia: 'Actividad por franja horaria', mes: 'Actividad por día', anio: 'Actividad por mes', todo: 'Actividad por mes' };
+
+  /* Mueve el periodo hacia delante o hacia atrás (un día, un mes o un año). */
+  function shiftPeriod(direction) {
+    const ref = new Date(reportRef);
+    if (reportPeriod === 'dia') ref.setDate(ref.getDate() + direction);
+    else if (reportPeriod === 'mes') ref.setMonth(ref.getMonth() + direction, 1);
+    else if (reportPeriod === 'anio') ref.setFullYear(ref.getFullYear() + direction, 0, 1);
+    else return;
+    reportRef = ref;
+  }
+
+  function renderInforme() {
+    $$('#periodChips .chip').forEach((chip) => chip.classList.toggle('is-active', chip.dataset.period === reportPeriod));
+
+    const range = Store.rangeFor(reportPeriod, reportRef);
+    const rep = Store.report(range.from, range.to);
+    const today = Store.todayKey();
+
+    $('#repLabel').textContent = capitalize(range.label);
+    $('#repPrev').disabled = reportPeriod === 'todo';
+    $('#repNext').disabled = reportPeriod === 'todo' || range.to >= today;
+
+    $('#repSummary').innerHTML = [
+      { value: `${Math.round(rep.rate * 100)}%`, label: `Cumplimiento (${rep.completed}/${rep.expected})` },
+      { value: rep.sessions, label: 'Sesiones' },
+      { value: fmtMinutes(rep.minutes), label: 'Tiempo dedicado' },
+      { value: rep.pomodoros, label: 'Pomodoros' },
+    ].map((s) => `<div class="stat"><b>${escapeHtml(s.value)}</b><span>${escapeHtml(s.label)}</span></div>`).join('');
+
+    // Gráfico: minutos si los hay, y si no, número de sesiones.
+    const data = Store.series(reportPeriod, reportRef);
+    const useMinutes = data.some((d) => d.minutes > 0);
+    const max = Math.max(1, ...data.map((d) => (useMinutes ? d.minutes : d.sessions)));
+    $('#repChartTitle').textContent = PERIOD_TITLES[reportPeriod];
+    $('#repChart').innerHTML = data.map((d) => {
+      const value = useMinutes ? d.minutes : d.sessions;
+      const height = Math.round((value / max) * 120) + 4;
+      const isToday = d.key === today;
+      return `<div class="bar ${isToday ? 'is-today' : ''}" title="${escapeHtml(d.label)}: ${d.sessions} sesiones · ${fmtMinutes(d.minutes)}">
         <div class="bar-fill ${value ? '' : 'dim'}" style="height:${height}px"></div>
-        <small>${d.label}${d.isToday ? ' •' : ''}</small>
-        <small>${d.minutes ? `${d.minutes}m` : d.sessions || ''}</small>
+        <small class="value">${value || ''}</small>
+        <small>${escapeHtml(d.label)}</small>
       </div>`;
     }).join('');
 
-    const routines = Store.state.routines;
-    $('#streakList').innerHTML = routines.length
-      ? routines.map((r) => {
-        const st = Store.streak(r);
-        const week = days.filter((d) => Store.progress(r, d.key).done).length;
+    $('#repRoutines').innerHTML = rep.perRoutine.length
+      ? rep.perRoutine.map((row) => {
+        const pct = row.daysScheduled ? Math.round((row.daysDone / row.daysScheduled) * 100) : (row.daysDone ? 100 : 0);
+        const resumen = [
+          `${row.daysDone} de ${row.daysScheduled} días`,
+          row.count ? `${row.count} ${row.count === 1 ? 'vez' : 'veces'}` : '',
+          row.minutes ? fmtMinutes(row.minutes) : '',
+        ].filter(Boolean).join(' · ');
         return `<div class="item">
-          <span class="routine-emoji">${escapeHtml(r.emoji)}</span>
+          <span class="routine-emoji">${escapeHtml(row.routine.emoji)}</span>
           <div class="item-main">
-            <span class="item-title">${escapeHtml(r.name)}</span>
-            <span class="muted">${week} de los últimos 7 días</span>
+            <span class="item-title">${escapeHtml(row.routine.name)}</span>
+            <span class="muted">${escapeHtml(resumen)}</span>
+            <div class="rep-bar"><i style="width:${Math.min(100, pct)}%"></i></div>
           </div>
-          <span class="badge">🔥 ${st}</span>
+          <span class="rep-pct">${pct}%</span>
         </div>`;
       }).join('')
-      : '<div class="empty">Crea rutinas para ver tus rachas.</div>';
+      : '<div class="empty">Crea rutinas para ver el informe.</div>';
 
-    const history = Store.state.logs.slice().sort((a, b) => b.ts - a.ts).slice(0, 25);
-    $('#historyList').innerHTML = history.length
+    const history = Store.state.logs
+      .filter((l) => l.date >= range.from && l.date <= range.to)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 30);
+    $('#repHistory').innerHTML = history.length
       ? history.map((l) => {
         const r = Store.getRoutine(l.routineId);
         const when = new Date(l.ts);
@@ -332,7 +425,7 @@ window.UI = (function () {
           <button class="btn btn-ghost btn-icon" data-action="delete-log" title="Borrar registro">🗑</button>
         </div>`;
       }).join('')
-      : '<div class="empty">Aún no hay registros.</div>';
+      : '<div class="empty">Sin registros en este periodo.</div>';
   }
 
   /* ---------- Vista Ajustes ---------- */
@@ -375,10 +468,120 @@ window.UI = (function () {
     $$('#rMode input').forEach((input) => { input.checked = input.value === mode; });
     dialogDays = routine ? routine.days.slice() : [0, 1, 2, 3, 4, 5, 6];
     $('#rDelete').hidden = !routine;
+    $('#rShare').hidden = !routine;
     renderDayPicker();
     syncModeFields();
     $('#routineDialog').showModal();
     $('#rName').focus();
+  }
+
+  /* ---------- Perfiles ---------- */
+
+  function renderProfileChip() {
+    const profile = Store.activeProfile();
+    if (!profile) return;
+    $('#profileEmoji').textContent = profile.emoji;
+    $('#profileName').textContent = profile.name;
+  }
+
+  function renderProfileList() {
+    const activeId = Store.state.activeProfileId;
+    const profiles = Store.state.profiles;
+    $('#profileList').innerHTML = profiles.map((profile) => {
+      const isActive = profile.id === activeId;
+      return `<div class="item profile-row ${isActive ? 'is-active' : ''}" data-profile="${profile.id}">
+        <span class="routine-emoji">${escapeHtml(profile.emoji)}</span>
+        <div class="item-main">
+          <span class="item-title">${escapeHtml(profile.name)}</span>
+          <span class="muted">${Store.profileSummary(profile.id)}</span>
+        </div>
+        ${isActive ? '<span class="badge ok">En uso</span>' : '<button class="btn btn-ghost" data-action="use">Usar</button>'}
+        <div class="item-actions">
+          <button class="btn btn-ghost btn-icon" data-action="rename" title="Cambiar nombre">✏️</button>
+          ${profiles.length > 1 ? '<button class="btn btn-ghost btn-icon" data-action="delete" title="Eliminar perfil">🗑</button>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openProfileDialog() {
+    renderProfileList();
+    $('#pName').value = '';
+    $('#pEmoji').value = '🙂';
+    $('#profileDialog').showModal();
+  }
+
+  /* ---------- Compartir rutinas ---------- */
+
+  function profileOptions(excludeActive) {
+    const activeId = Store.state.activeProfileId;
+    return Store.state.profiles
+      .filter((p) => !excludeActive || p.id !== activeId)
+      .map((p) => `<option value="${p.id}">${escapeHtml(p.emoji)} ${escapeHtml(p.name)}</option>`)
+      .join('');
+  }
+
+  function renderShareList() {
+    $('#shareList').innerHTML = Store.state.routines.map((routine) => `
+      <label class="item" data-share-routine="${routine.id}">
+        <input type="checkbox" ${shareSelection.has(routine.id) ? 'checked' : ''} />
+        <span class="routine-emoji">${escapeHtml(routine.emoji)}</span>
+        <div class="item-main"><span class="item-title">${escapeHtml(routine.name)}</span></div>
+      </label>`).join('') || '<div class="empty">No tienes rutinas que compartir.</div>';
+  }
+
+  function openShareDialog(routineIds) {
+    const all = Store.state.routines.map((r) => r.id);
+    shareSelection = new Set(routineIds && routineIds.length ? routineIds : all);
+    renderShareList();
+
+    // El bloque de perfiles sólo tiene sentido si hay más de uno en el dispositivo.
+    const others = profileOptions(true);
+    $('#shareProfile').innerHTML = others;
+    $('#shareProfileField').hidden = !others;
+    $('#shareNative').hidden = !navigator.share;
+    showShareOutput('');
+    $('#shareDialog').showModal();
+  }
+
+  /* El campo del enlace sólo aparece cuando hay algo que copiar. */
+  function showShareOutput(value) {
+    $('#shareOutput').value = value;
+    $('#shareOutputField').hidden = !value;
+  }
+
+  function selectedRoutines() {
+    return Store.state.routines.filter((r) => shareSelection.has(r.id));
+  }
+
+  function toggleShareRoutine(id, checked) {
+    if (checked) shareSelection.add(id);
+    else shareSelection.delete(id);
+  }
+
+  function openReceiveDialog(payload) {
+    pendingShare = payload;
+    const total = payload.routines.length;
+    $('#receiveFrom').textContent = payload.from
+      ? `${payload.from} te comparte ${total} ${total === 1 ? 'rutina' : 'rutinas'}.`
+      : `Has recibido ${total} ${total === 1 ? 'rutina' : 'rutinas'}.`;
+    $('#receiveList').innerHTML = payload.routines.map((routine) => {
+      const meta = routine.mode === 'tiempo'
+        ? `Por tiempo · ${routine.goalMinutes} min al día`
+        : routine.mode === 'ambos'
+          ? `Por veces o por tiempo · ${routine.goalCount}/día · sesiones de ${routine.minutes} min`
+          : `Por veces · ${routine.goalCount} al día`;
+      return `<div class="item">
+        <span class="routine-emoji">${escapeHtml(routine.emoji)}</span>
+        <div class="item-main">
+          <span class="item-title">${escapeHtml(routine.name)}</span>
+          <span class="muted">${escapeHtml(meta)}</span>
+        </div>
+      </div>`;
+    }).join('');
+    $('#receiveProfile').innerHTML = profileOptions(false);
+    $('#receiveProfile').value = Store.state.activeProfileId;
+    $('#receiveDialog').showModal();
   }
 
   /* ---------- Hoja de duración ---------- */
@@ -435,6 +638,7 @@ window.UI = (function () {
 
   function render() {
     renderFocus();
+    renderProfileChip();
     if (currentView === 'hoy') {
       renderSummary();
       renderRoutines();
@@ -443,8 +647,10 @@ window.UI = (function () {
       renderTasks();
     } else if (currentView === 'pomodoro') {
       renderPomodoro();
-    } else if (currentView === 'stats') {
-      renderStats();
+    } else if (currentView === 'calendario') {
+      renderCalendario();
+    } else if (currentView === 'informe') {
+      renderInforme();
     } else if (currentView === 'ajustes') {
       renderSettings();
     }
@@ -468,6 +674,7 @@ window.UI = (function () {
     escapeHtml,
     fmtClock,
     fmtMinutes,
+    capitalize,
     toast,
     setView,
     render,
@@ -476,6 +683,16 @@ window.UI = (function () {
     renderDayPicker,
     syncModeFields,
     openDurationSheet,
+    openProfileDialog,
+    renderProfileList,
+    renderProfileChip,
+    openShareDialog,
+    renderShareList,
+    showShareOutput,
+    selectedRoutines,
+    toggleShareRoutine,
+    openReceiveDialog,
+    shiftPeriod,
     renderInstallHint,
     dismissInstallHint,
     syncThemeColor,
@@ -483,6 +700,16 @@ window.UI = (function () {
     isIOS,
     get durationRoutineId() { return durationRoutineId; },
     set durationRoutineId(v) { durationRoutineId = v; },
+    get calendarRef() { return calendarRef; },
+    set calendarRef(v) { calendarRef = v; },
+    get calendarSelected() { return calendarSelected; },
+    set calendarSelected(v) { calendarSelected = v; },
+    get reportPeriod() { return reportPeriod; },
+    set reportPeriod(v) { reportPeriod = v; },
+    get reportRef() { return reportRef; },
+    set reportRef(v) { reportRef = v; },
+    get pendingShare() { return pendingShare; },
+    set pendingShare(v) { pendingShare = v; },
     get currentView() { return currentView; },
     get editingRoutineId() { return editingRoutineId; },
     set editingRoutineId(v) { editingRoutineId = v; },
