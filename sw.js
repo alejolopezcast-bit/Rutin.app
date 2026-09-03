@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin conexión y se actualiza sola al desplegar.
    Sube VERSION cuando cambien los ficheros cacheados. */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `rutin-app-${VERSION}`;
 
 const ASSETS = [
