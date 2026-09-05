@@ -1,189 +1,174 @@
 # Rutin.app
 
-App para llevar tu rutina diaria, tus tareas pendientes y tus pomodoros. Cada hábito
-se registra **por veces** (pulsas el botón y suma una sesión) o **por tiempo** (pulsas
-y arranca una cuenta atrás), o las dos cosas a la vez.
+## A daily routine tracker
 
-No necesita servidor ni cuenta: es HTML, CSS y JavaScript sin dependencias, y tus datos
-se guardan en el navegador (`localStorage`).
+An app for managing your daily routines, pending tasks, and Pomodoro sessions. Each habit can be tracked **by count** (press the button to add a completed session), **by time** (press it to start a countdown), or using both methods at the same time.
 
-## Instalarla en el iPhone
+It doesn't require a server or an account: it's built with HTML, CSS, and JavaScript with no dependencies, and your data is stored directly in the browser using `localStorage`.
 
-La app está preparada para funcionar como una app de iOS instalada desde Safari:
+## Installing it on iPhone
 
-1. Abre la URL de la app **en Safari** (no vale Chrome: en iOS solo Safari puede instalar).
-2. Toca **Compartir** (el cuadrado con la flecha hacia arriba).
-3. Elige **Añadir a pantalla de inicio** → **Añadir**.
+The app is designed to work as an iOS app installed from Safari:
 
-Aparece con su icono junto al resto de apps y se abre a pantalla completa, sin la barra de
-Safari. Funciona sin conexión y tus datos se quedan en el móvil.
+1. Open the app's URL **in Safari** (Chrome won't work: on iOS, only Safari can install it).
+2. Tap **Share** (the square with the upward arrow).
+3. Select **Add to Home Screen** → **Add**.
 
-Qué se cuidó para que se comporte como una app nativa:
+The app will appear alongside your other apps and open in full screen, without the Safari toolbar. It works offline, and your data stays on your phone.
 
-- Icono propio, pantallas de arranque para los iPhone más comunes y color de barra de
-  estado que sigue al tema claro/oscuro.
-- Respeta el notch, la Dynamic Island y la barra de inicio (`safe-area-inset`).
-- Sin zoom al tocar un campo, sin rebote de la página, sin menú de selección al mantener
-  pulsado y botones de 44 px, el mínimo táctil que recomienda Apple.
-- Para elegir una duración distinta se abre una hoja inferior con duraciones frecuentes,
-  en vez del cuadro de diálogo del navegador.
-- El sonido de aviso se desbloquea con tu primer toque (Safari lo exige).
-- La pantalla no se apaga mientras corre una cuenta atrás (Screen Wake Lock).
+### Native-like features
 
-### Límites de iOS que conviene conocer
+Several details were implemented to make the app behave more like a native iOS app:
 
-- **Con la app cerrada o el móvil bloqueado, iOS congela el JavaScript**: no sonará el
-  aviso ni llegará una notificación al terminar una cuenta atrás. La cuenta atrás **no se
-  pierde**: al volver a la app se recalcula por marca de tiempo, la sesión queda registrada
-  con sus minutos y verás el aviso «Se completó una sesión mientras no mirabas».
-- Las **notificaciones** en iOS solo funcionan con la app añadida a la pantalla de inicio
-  (iOS 16.4 o superior) y mientras la app esté abierta.
-- Si necesitas avisos con la app cerrada, hace falta una app nativa de verdad
-  (Capacitor o SwiftUI); esta versión no puede darlos.
+* Custom icon, splash screens for common iPhone sizes, and a status bar color that follows the light/dark theme.
+* Supports the notch, Dynamic Island, and the Home Indicator using `safe-area-inset`.
+* No zoom when tapping an input field, no page bounce, no text selection menu on long press, and 44px buttons, following Apple's recommended minimum touch target.
+* Selecting a different duration opens a bottom sheet with common durations instead of the browser's default dialog.
+* Notification sounds are unlocked with the first user interaction, as required by Safari.
+* The screen stays awake while a countdown is running using Screen Wake Lock.
 
-### Sobre el "sistema de usuarios"
+### iOS limitations you should know about
 
-Los perfiles y el compartir funcionan **sin servidor ni cuentas**: todo vive en el
-dispositivo y las rutinas se pasan por enlace o código. Eso encaja con una app estática
-que se publica en GitHub Pages y se instala en el iPhone.
+* **When the app is closed or the phone is locked, iOS freezes JavaScript**: the alert sound won't play and no notification will be triggered when a countdown finishes. The countdown **is not lost**: when you return to the app, it recalculates the elapsed time using the timestamp. The session is saved with its minutes, and you'll see the message: *"A session was completed while you weren't looking."*
+* **Notifications** on iOS only work when the app has been added to the Home Screen (iOS 16.4 or later) and while the app is open.
+* If you need notifications while the app is closed, you need a real native app using something like Capacitor or SwiftUI. This version cannot provide them.
 
-Lo que esto **no** hace: no hay inicio de sesión, ni sincronización entre dispositivos, ni
-un muro común de rutinas. Para eso haría falta un backend (por ejemplo Supabase o Firebase)
-con autenticación y base de datos; el modelo de datos ya está separado por perfil, así que
-esa capa se podría añadir encima sin rehacer la app.
+### About the "user system"
 
-## Publicarla
+Profiles and routine sharing work **without a server or accounts**: everything is stored on the device, and routines can be shared through a link or code. This fits well with a static app published on GitHub Pages and installed on an iPhone.
 
-El repositorio incluye `.github/workflows/pages.yml`, que publica la app en **GitHub Pages**
-en cada `push` a `main`. Para activarlo: en GitHub, *Settings → Pages → Source: GitHub Actions*
-(el repositorio debe ser público, o tener un plan de pago). La URL queda en
-`https://<usuario>.github.io/Rutin.app/`.
+What it **doesn't** do: there is no login system, cross-device synchronization, or shared routine wall. These features would require a backend (for example, Supabase or Firebase) with authentication and a database. The data model is already separated by profile, so this layer could be added later without rebuilding the app.
 
-## Cómo usarla en el ordenador
+## Publishing
 
-Abre `index.html` en el navegador. Si prefieres servirla (necesario para instalarla como
-app y para el modo sin conexión):
+The repository includes `.github/workflows/pages.yml`, which publishes the app to **GitHub Pages** on every `push` to `main`.
+
+To enable it, go to GitHub → *Settings → Pages → Source: GitHub Actions* (the repository must be public or you need a paid plan).
+
+The URL will be:
+
+`https://<username>.github.io/Rutin.app/`
+
+## Running it on a computer
+
+Open `index.html` in your browser.
+
+If you prefer to serve it locally (required for installing it as an app and for offline mode):
 
 ```bash
-npx http-server -p 8080 .   # y abre http://localhost:8080
+npx http-server -p 8080 .
+# Then open http://localhost:8080
 ```
 
-En Ajustes tienes **Cargar rutina de ejemplo** para ver la app con datos.
+In **Settings**, you can select **Load sample routine** to explore the app with example data.
 
-## Qué puede hacer
+## Features
 
-### Rutinas
+### Routines
 
-Al crear una rutina eliges cómo la quieres registrar:
+When creating a routine, you can choose how you want to track it:
 
-| Modo | Cómo se usa | Ejemplo |
-| --- | --- | --- |
-| **Por veces** | Pulsas el botón y suma una sesión hecha. La meta es un número de veces al día. | Gimnasio 1 vez al día, beber agua 8 veces |
-| **Por tiempo** | Pulsas y arranca una cuenta atrás. Al acabar se registra la sesión con sus minutos. | Leer 30 min, meditar 10 min |
-| **Las dos** | Tienes los dos botones: marcas rápido o cronometras según el día. | Gimnasio: unos días lo marcas, otros cronometras la hora |
+| **Mode**     | **How it works**                                                                                | **Example**                               |
+| ------------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **By count** | Press the button to record a completed session. The goal is a number of times per day.          | Gym once a day, drink water 8 times       |
+| **By time**  | Press the button to start a countdown. When it ends, the session is recorded with its duration. | Read for 30 min, meditate for 10 min      |
+| **Both**     | You have both buttons: quickly mark a session or track it with a timer depending on the day.    | Gym: mark it some days, time it on others |
 
-Además de eso:
+Additional features:
 
-- **Días de la semana**: cada rutina se programa en los días que quieras. Los días que
-  no toca siguen visibles con la etiqueta *Hoy no toca*, por si te apetece hacerla igual.
-- **⏱ Otra duración**: arranca la cuenta atrás con los minutos que le digas, no sólo con
-  los de la rutina.
-- **↺ Deshacer**: quita el último registro del día si te has equivocado.
-- **Rachas**: días seguidos cumpliendo la rutina.
+* **Days of the week**: each routine can be scheduled for the days you want. Days when a routine isn't scheduled remain visible with the *Not scheduled today* label, in case you still want to do it.
+* **⏱ Custom duration**: start a countdown with any number of minutes, not just the routine's default duration.
+* **↺ Undo**: remove the last record of the day if you made a mistake.
+* **Streaks**: consecutive days of completing a routine.
 
-### Cuenta atrás
+### Countdown Timer
 
-Cuando hay una sesión en marcha aparece una barra flotante con el tiempo restante:
+When a session is running, a floating bar displays the remaining time:
 
-- **Pausar / Reanudar** sin perder lo que llevas.
-- **Terminar** registra los minutos hechos hasta ese momento.
-- **✕** cancela sin registrar nada.
-- La sesión sobrevive a recargas y a cerrar la pestaña: al volver sigue en su sitio (y si
-  el tiempo se cumplió mientras no estabas, queda registrada).
-- Avisa con un sonido y, si le das permiso, con una notificación del navegador.
+* **Pause / Resume** without losing your progress.
+* **Finish** records the minutes completed up to that point.
+* **✕** cancels the session without recording anything.
+* The session survives page reloads and closing the tab. When you return, it continues from where it should be. If the timer finished while you were away, the session is automatically recorded.
+* The app plays a sound and, if permission is granted, displays a browser notification.
 
-### Tareas y pomodoros
+### Tasks and Pomodoros
 
-- Lista de pendientes con pomodoros estimados (`0/3 🍅`) y los que ya llevas.
-- El botón 🍅 de una tarea abre el pomodoro ya asociado a ella: cada pomodoro completado
-  se le suma.
-- Duraciones configurables (concentración, descanso corto, descanso largo y cada cuántos
-  pomodoros toca el largo) y opción de encadenarlos automáticamente.
+* To-do list with estimated Pomodoros (`0/3 🍅`) and completed Pomodoros.
+* The 🍅 button on a task opens the Pomodoro timer already associated with it. Each completed Pomodoro is added to the task.
+* Configurable durations for focus time, short breaks, long breaks, and how many Pomodoros are required before a long break. Pomodoros can also be chained automatically.
 
-### Calendario
+### Calendar
 
-Vista mensual navegable donde cada día se tiñe según el porcentaje de rutinas que
-cumpliste de las que tocaban: de un vistazo se ve dónde flojeaste. Al tocar un día se
-abre su detalle con cada rutina, lo que hiciste y lo que quedó pendiente.
+A navigable monthly view where each day is colored according to the percentage of scheduled routines you completed. This makes it easy to see where you fell behind.
 
-### Informe
+Clicking a day opens a detailed view showing each routine, what you completed, and what remains pending.
 
-El mismo informe en cuatro escalas: **día**, **mes**, **año** y **hasta ahora**, con
-flechas para moverte por periodos.
+### Reports
 
-- Porcentaje de cumplimiento (cumplidas / las que tocaban), sesiones, tiempo y pomodoros.
-- Gráfico que se adapta al periodo: por franjas horarias en un día, por días en un mes,
-  por meses en un año o en todo el historial.
-- Desglose rutina a rutina con su porcentaje y su detalle.
-- Historial del periodo, con opción de borrar registros sueltos.
+The same report is available across four time scales: **day**, **month**, **year**, and **all time**, with arrows to navigate between periods.
 
-### Perfiles y rutinas compartidas
+* Completion percentage (completed / scheduled), sessions, time, and Pomodoros.
+* Charts adapt to the selected period: by time of day for a day, by days for a month, by months for a year, or across the entire history.
+* Routine-by-routine breakdown with completion percentages and detailed statistics.
+* Period history, with the option to delete individual records.
 
-Varios perfiles conviven en el mismo dispositivo, cada uno con sus rutinas, tareas e
-historial. Se cambia de perfil desde la chapa de la cabecera.
+### Profiles and Shared Routines
 
-Para compartir rutinas con otra persona hay tres caminos, y en los tres viaja **solo la
-definición de las rutinas**: nunca tu historial, tus tareas ni tus datos.
+Multiple profiles can coexist on the same device, each with their own routines, tasks, and history.
 
-| Cómo | Para qué |
-| --- | --- |
-| **Enlace** | Se copia (o se abre el menú de compartir de iOS) y quien lo reciba verá un diálogo para añadirlas. Las rutinas viajan dentro del propio enlace, en el fragmento `#compartir=…`, así que **no pasan por ningún servidor**. |
-| **Código** | El mismo contenido en texto, para pegar donde quieras. Se importa desde *Ajustes → Rutinas compartidas*. |
-| **Otro perfil** | Copia las rutinas a otro perfil del mismo dispositivo, sin salir de la app. |
+You can switch profiles using the profile button in the header.
 
-Al importar se ve primero qué llega y a qué perfil va; nada se añade sin confirmar, y las
-rutinas que ya tengas con el mismo nombre no se duplican. Como el contenido de un enlace
-viene de fuera, al entrar se valida y se acota: nombres, emojis, números y días fuera de
-rango se recortan o se descartan.
+Routines can be shared with another person in three ways. In all three cases, **only the routine definitions are shared** — never your history, tasks, or personal data.
 
-### Tus datos
+| **Method**          | **Purpose**                                                                                                                                                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Link**            | Copy the link (or use the iOS sharing menu) and the recipient will see a dialog asking whether to add the routines. The routines are included directly in the URL using the `#share=...` fragment, so **they never pass through a server**. |
+| **Code**            | The same content as plain text, which you can paste wherever you want. Import it from *Settings → Shared Routines*.                                                                                                                         |
+| **Another profile** | Copy routines to another profile on the same device without leaving the app.                                                                                                                                                                |
 
-Todo vive en tu navegador. En Ajustes puedes **exportar** una copia en JSON, **importarla**
-en otro dispositivo o **borrar** todo. Servida por HTTP se instala como app (PWA) y funciona
-sin conexión.
+When importing, you can preview what will be added and which profile it will go to. Nothing is added without confirmation, and routines with the same name are not duplicated.
 
-## Estructura
+Since shared links come from external sources, their contents are validated and restricted when imported: names, emojis, numbers, and out-of-range days are sanitized or discarded.
 
-```
-index.html            Estructura de las vistas, hojas y diálogos
-assets/styles.css     Estilos (tema oscuro y claro, áreas seguras de iOS)
-assets/icon.svg       Icono vectorial
-assets/icons/         Iconos PNG (iOS y manifiesto)
-assets/splash/        Pantallas de arranque de iOS
-src/store.js          Estado, perfiles, informes, calendario y compartir
-src/timer.js          Cuentas atrás y pomodoros, audio, avisos y wake lock
-src/ui.js             Pintado de las vistas
-src/app.js            Arranque y eventos
-manifest.json         Manifiesto PWA
-sw.js                 Service worker (uso sin conexión)
-tools/                Generador de iconos y splashes
-tests/                Pruebas automáticas
-.github/workflows/    Despliegue a GitHub Pages
+### Your Data
+
+Everything is stored in your browser.
+
+In **Settings**, you can **export** a copy as JSON, **import** it on another device, or **delete everything**.
+
+When served over HTTP, the app can be installed as a PWA and works offline.
+
+## Project Structure
+
+```text
+index.html            View structure, sheets, and dialogs
+assets/styles.css     Styles (dark/light themes, iOS safe areas)
+assets/icon.svg       Vector icon
+assets/icons/         PNG icons (iOS and manifest)
+assets/splash/        iOS splash screens
+src/store.js          State, profiles, reports, calendar, and sharing
+src/timer.js          Countdown timers and Pomodoros, audio, notifications, and wake lock
+src/ui.js             View rendering
+src/app.js            Application startup and events
+manifest.json         PWA manifest
+sw.js                 Service worker (offline support)
+tools/                Icon and splash screen generator
+tests/                Automated tests
+.github/workflows/    GitHub Pages deployment
 ```
 
-## Pruebas
+## Tests
 
 ```bash
-npm i -g playwright && playwright install chromium   # sólo la primera vez
+npm i -g playwright && playwright install chromium   # first time only
 ./tests/run.sh
 ```
 
-Levanta un servidor estático y ejecuta cuatro suites: la lógica del store sin navegador
-(migración de datos, informes, calendario y validación de lo que llega por un enlace
-compartido) y tres en navegador (la app en escritorio, las funciones nuevas y el perfil de
-un iPhone). Son 152 comprobaciones.
+The test suite starts a static server and runs four suites: store logic without a browser (data migration, reports, calendar, and validation of shared-link data), plus three browser-based suites (desktop app, new features, and an iPhone profile).
 
-Los PNG se regeneran a partir de `assets/icon.svg` con:
+There are **152 automated checks**.
+
+PNG assets can be regenerated from `assets/icon.svg` using:
 
 ```bash
 NODE_PATH=$(npm root -g) node tools/generate-assets.js
